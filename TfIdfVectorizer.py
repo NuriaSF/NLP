@@ -27,16 +27,19 @@ class TfIdfVectorizer():
                     idx += 1
                 self.X_w[word] += 1
 
-    def term_frequency(self, document):
-        words = self.splitter.findall(document.lower())
+    def term_frequency(self, corpus):
         n_features = len(self.vocabulary)
+        n_documents = len(corpus)
+        
+        mat = sparse.lil_matrix((n_documents, n_features))
 
-        word_indices = []
-        for w in words: 
-            if w in self.vocabulary.keys(): #if the word is not in the vocabulary we ignore it
-                word_indices.append(self.vocabulary[w])
-
-        return sparse.csr_matrix( (np.ones(len(word_indices)), (np.zeros(len(word_indices)), word_indices)), shape=(1, n_features))
+        for i, doc in enumerate(corpus):
+            words = self.splitter.findall(doc.lower())
+            for w in words:
+                if w in self.vocabulary.keys():
+                    mat[i,self.vocabulary[w]]+=1
+        
+        return mat.tocsr()
 
     def compute_idf(self, n_documents):
         n_features = len(self.vocabulary)
@@ -49,16 +52,11 @@ class TfIdfVectorizer():
     
     def transform(self, X):
         idf = self.compute_idf(len(X))
-        mat = None
-        for doc in X:
-            tf = self.term_frequency(doc)
-            tfidf = tf.multiply(idf)
-            tfidf = tfidf/sparse.linalg.norm(tfidf)
-            if mat is None:
-                mat = tfidf
-            else:
-                mat = sparse.vstack([mat, tfidf])
-        return mat
+        mat = self.term_frequency(X)
+        
+        tfidf = mat.multiply(idf)
+        tfidf = tfidf/sparse.linalg.norm(tfidf)
+        return tfidf
     
     def fit_transform(self, X):
         self.fit(X)
