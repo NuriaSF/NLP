@@ -1,4 +1,5 @@
 import numpy as np
+import re
 cimport cython
 cimport numpy as np
 
@@ -206,7 +207,7 @@ cdef class Spelling_Correction_c:
         cdef str w, w_corrected
         
         correction = []
-        for w in text.split(" "):
+        for w in re.findall(r"(?u)\b\w+\b",text):
             if w in self.words:
                 correction.append(w)
             else:
