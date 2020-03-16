@@ -10,7 +10,7 @@ class TfIdfVectorizer():
         self.splitter = re.compile(splitter)
         self.X_w = defaultdict(int)
         self.vocabulary = dict()
-        
+        self.idf = []
     
     def fit(self, corpus):
         """
@@ -26,6 +26,7 @@ class TfIdfVectorizer():
                     self.vocabulary[word] = idx
                     idx += 1
                 self.X_w[word] += 1
+        self.idf = self.compute_idf(len(corpus))
 
     def term_frequency(self, corpus):
         n_features = len(self.vocabulary)
@@ -51,11 +52,14 @@ class TfIdfVectorizer():
         return sparse.csr_matrix(idf)
     
     def transform(self, X):
-        idf = self.compute_idf(len(X))
+        #idf = self.compute_idf(len(X))
         mat = self.term_frequency(X)
         
-        tfidf = mat.multiply(idf)
-        tfidf = tfidf/sparse.linalg.norm(tfidf)
+        tfidf = mat.multiply(self.idf)
+        tfidf_norm = np.repeat(1/sparse.linalg.norm(tfidf, axis=1), mat.getnnz(axis=1))
+        r,c = mat.nonzero()
+        tfidf_norm = sparse.csr_matrix((tfidf_norm, (r,c)), shape=(mat.shape))
+        tfidf = tfidf.multiply(tfidf_norm)
         return tfidf
     
     def fit_transform(self, X):
