@@ -14,7 +14,7 @@ from scipy.sparse import hstack
 
 class Preprocessor():
 
-	def __init__(self, 
+	def __init__(self,
 				 doc_cleaner_pattern=r"('\w+)|([^a-zA-Z0-9])", #pattern for cleaning document
 				 token_pattern=r"(?u)\b\w+\b", #pattern defining what a token is
 				 document_cleaner_func=None,
@@ -41,6 +41,10 @@ class Preprocessor():
 
 
 	def _document_cleaner(self, lower=True):
+		"""
+		By default, removes all the non alphanumeric characters along with any
+		character that follows an apostrophe
+		"""
 
 		if self.document_cleaner_func: #inputted one
 			return self.document_cleaner_func
@@ -53,6 +57,11 @@ class Preprocessor():
 				return lambda doc: clean_doc_pattern.sub(" ", doc)
 
 	def _tokenizer(self):
+		"""
+		By default, the tokens will be the sets of alphanumeric characters
+		separated by white spaces.
+		Notice that a token may be composed of a single character.
+		"""
 
 		if self.tokenizer_func: #inputted one
 			return self.tokenizer_func
