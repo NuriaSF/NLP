@@ -1,3 +1,4 @@
+from nltk.stem.wordnet import WordNetLemmatizer
 import numpy as np
 import re
 cimport cython
@@ -193,6 +194,16 @@ cdef class Spelling_Correction_c:
         # sort by distance
         return sorted(self._search_descendants(self.tree, query_word))
     
+    cpdef is_number(self, str word):
+        cdef res
+        try :  
+            float(word) 
+            res = True
+        except : 
+            res = False
+        return res
+
+    
     cpdef str correct_text(self, str text):
         '''
         Corrects a text by replacing unknown words to their most similar word.
@@ -207,18 +218,29 @@ cdef class Spelling_Correction_c:
         cdef str w, w_corrected
         
         correction = []
-        for w in re.findall(r"(?u)\b\w+\b",text):
-            if w in self.words:
+        lemmatizer = WordNetLemmatizer()
+        #First we find all words (which contain alphanumeric characters or ., and are between spaces)
+        for w in re.findall(r"(?u)\b[\w.,]+\b",text):
+            if self.is_number(w): #If the word is a number, we leave it that way
                 correction.append(w)
             else:
-                w_similar = self.find_closest_neighbours(w)
-
-                if len(w_similar)>0:
-                    w_corrected = w_similar[0][1]
-                    correction.append(w_corrected)
+                w_lem = lemmatizer.lemmatize(w.lower(),'v') #Get the root of the word
+                if w_lem == w.lower():
+                    w_lem = lemmatizer.lemmatize(w.lower(),'n')
+                if w_lem in self.words: #If the root of the word is in our dict, we leave it that way
+                    correction.append(w_lem)
                 else:
-                    # no word found, simply append the unedited word
-                    correction.append(w)
+                    if w.isupper() and len(w)>1: #If the word is all in caps, and it has more than one letter
+                        correction.append(w.lower()) #we assume it is an acronym and leave it that way
+                        continue
+                    #Otherwise, we look for the most similar word using our BK-tree
+                    w_similar = self.find_closest_neighbours(w_lem)
+
+                    if len(w_similar)>0:
+                        w_corrected = w_similar[0][1]
+                        correction.append(w_corrected)
+                    else:
+                        # no word found, simply append the unedited word
+                        correction.append(w_lem)
         return " ".join(correction)
-                    
                     
