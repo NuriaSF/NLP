@@ -54,10 +54,16 @@ class CountVectorizer(sklearn.base.BaseEstimator, sklearn.base.TransformerMixin)
         self.token_cleaner_func = token_cleaner_func
         self.stop_words = stop_words
 
-    def fit(self, X):
+    def fit(self, X, y=None):
+        self.fit_transform(X)
+        return self
 
+    def fit_transform(self, X, y=None):
         assert self.vocabulary == set(), "self.vocabulary is not empty it has {} words".format(len(self.vocabulary))
         assert isinstance(X,list), "X is expected to be a list of documents"
+        assert len(X)%2 == 0, "There are unpaired sentences in X." #This is a small modification for the CountVectorizer to suit our problem.
+
+        n_docs = len(X)
 
         word_to_ind = collections.OrderedDict() #vocab dictionary
 
@@ -85,12 +91,19 @@ class CountVectorizer(sklearn.base.BaseEstimator, sklearn.base.TransformerMixin)
         self.n_features = len(word_to_ind)
         self.vocabulary = set(word_to_ind.keys())
 
-        return self
+        Xq1 = self.transform(X[:int(n_docs/2)])
+        Xq2 = self.transform(X[int(n_docs/2):])
+        encoded_X = self._limit_features(Xq1, Xq2) #This does min_df and max_df properly considering our problem
 
-    def _limit_features(self, X):
-        n_doc = X.shape[0]
+        return encoded_X
+
+    def _limit_features(self, Xq1, Xq2):
+        n_doc = Xq1.shape[0]
         max_doc_count = (self.max_df if isinstance(self.max_df, numbers.Integral) else self.max_df * n_doc)
         min_doc_count = (self.min_df if isinstance(self.min_df, numbers.Integral) else self.min_df * n_doc)
+
+
+        X = sparse.vstack([Xq1, Xq2], format='csr')
         dfs = np.bincount(X.indices, minlength=X.shape[1])
         mask = np.ones(len(dfs), dtype=bool)
         if max_doc_count is not None:
@@ -98,7 +111,25 @@ class CountVectorizer(sklearn.base.BaseEstimator, sklearn.base.TransformerMixin)
         if min_doc_count is not None:
             mask &= dfs >= min_doc_count
 
-        return X[:, mask]
+        # Remove words from vocabulary & word_to_ind
+        if(any(~mask)):
+            new_indices = np.cumsum(mask) - 1
+            #removed_terms = set()
+            for term, old_index in list(self.word_to_ind.items()):
+                if mask[old_index]:
+                    self.word_to_ind[term] = new_indices[old_index]
+                else:
+                    del self.word_to_ind[term]
+                    self.vocabulary.difference(set(term))
+            #        removed_terms.add(term)
+        kept_indices = np.where(mask)[0]
+        if len(kept_indices) == 0:
+            raise ValueError("After pruning, no terms remain. Try a lower min_df or a higher max_df.")
+
+        Xq1 = Xq1[:,kept_indices]
+        Xq2 = Xq2[:,kept_indices]
+        X = sparse.hstack([Xq1, Xq2], format='csr')
+        return X#, removed_terms
 
     def transform(self, X):
 
@@ -126,13 +157,6 @@ class CountVectorizer(sklearn.base.BaseEstimator, sklearn.base.TransformerMixin)
                         col.append(ngram_index)
                         data.append(1)
 
-        encoded_X = scipy.sparse.csr_matrix((data, (row,col)), shape=(m+1,len(self.word_to_ind)))
+        encoded_X = scipy.sparse.csr_matrix((data, (row,col)), shape=(len(X), len(self.word_to_ind)))
 
-        return encoded_X
-
-
-
-    def fit_transform(self, X, y=None):
-        self.fit(X)
-        encoded_X = self.transform(X)
         return encoded_X
