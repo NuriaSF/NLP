@@ -112,6 +112,7 @@ class CountVectorizer(sklearn.base.BaseEstimator, sklearn.base.TransformerMixin)
             mask &= dfs >= min_doc_count
 
         # Remove words from vocabulary & word_to_ind
+        removed_terms = set()
         if(any(~mask)):
             new_indices = np.cumsum(mask) - 1
             #removed_terms = set()
@@ -120,16 +121,17 @@ class CountVectorizer(sklearn.base.BaseEstimator, sklearn.base.TransformerMixin)
                     self.word_to_ind[term] = new_indices[old_index]
                 else:
                     del self.word_to_ind[term]
-                    self.vocabulary.difference(set(term))
-            #        removed_terms.add(term)
+                    removed_terms.add(term)
+
+        self.vocabulary.difference(removed_terms)
         kept_indices = np.where(mask)[0]
         if len(kept_indices) == 0:
             raise ValueError("After pruning, no terms remain. Try a lower min_df or a higher max_df.")
 
-        Xq1 = Xq1[:,kept_indices]
-        Xq2 = Xq2[:,kept_indices]
-        X = sparse.hstack([Xq1, Xq2], format='csr')
-        return X#, removed_terms
+        #Xq1 = Xq1[:,kept_indices]
+        #Xq2 = Xq2[:,kept_indices]
+        #X = sparse.hstack([Xq1, Xq2], format='csr')
+        return X[:,kept_indices]#X#, removed_terms
 
     def transform(self, X):
 
