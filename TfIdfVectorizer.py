@@ -74,9 +74,10 @@ class TfIdfVectorizer(sklearn.base.BaseEstimator, sklearn.base.TransformerMixin)
                     self.word_to_ind[ngram] = len(self.word_to_ind)
                 self.X_w[ngram] += 1
 
-        self._limit_features(len(X))
-
         self._compute_idf(len(X))
+        self._limit_features(self.transform(X))
+        self._compute_idf(len(X)) #ugly but works
+        
 
         self.n_features = len(self.word_to_ind)
         self.vocabulary = set(self.word_to_ind.keys())
@@ -116,23 +117,33 @@ class TfIdfVectorizer(sklearn.base.BaseEstimator, sklearn.base.TransformerMixin)
 
         return new_ngrams
 
-    def _limit_features(self, n_documents):
-        max_doc_count = (self.max_df if isinstance(self.max_df, numbers.Integral) else self.max_df * n_documents)
-        min_doc_count = (self.min_df if isinstance(self.min_df, numbers.Integral) else self.min_df * n_documents)
-        
-        new_X_w = self.X_w.copy()
+    def _limit_features(self, X):
+        n_doc = X.shape[0]
+        max_doc_count = (self.max_df if isinstance(self.max_df, numbers.Integral) else self.max_df * n_doc)
+        min_doc_count = (self.min_df if isinstance(self.min_df, numbers.Integral) else self.min_df * n_doc)
+        dfs = np.bincount(X.indices, minlength=X.shape[1])
+        mask = np.ones(len(dfs), dtype=bool)
+        if max_doc_count is not None:
+            mask &= dfs <= max_doc_count
+        if min_doc_count is not None:
+            mask &= dfs >= min_doc_count
 
-        new_index = 0
-        for i, w in enumerate(self.X_w.keys()):
-            if (new_X_w[w] <= max_doc_count) or (new_X_w[w] >= min_doc_count):
-                self.word_to_ind[w] = new_index
-                new_index+=1
-            else:
-                del new_X_w[w]
-                del self.word_to_ind[w]
+        # Remove words from vocabulary & word_to_ind
+        if(any(~mask)):
+            new_indices = np.cumsum(mask) - 1
+            #removed_terms = set()
+            for term, old_index in list(self.word_to_ind.items()):
+                if mask[old_index]:
+                    self.word_to_ind[term] = new_indices[old_index]
+                else:
+                    del self.word_to_ind[term]
+                    del self.X_w[term]
 
+        kept_indices = np.where(mask)[0]
+        if len(kept_indices) == 0:
+            raise ValueError("After pruning, no terms remain. Try a lower min_df or a higher max_df.")
 
-        self.X_w = new_X_w
+        return X[:,kept_indices]
 
     def _compute_idf(self, n_documents):
         n_features = len(self.word_to_ind)
