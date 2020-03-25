@@ -14,7 +14,6 @@ from nltk.corpus import stopwords
 from scipy.sparse import hstack
 from preprocessor import Preprocessor
 
-
 class CountVectorizer(sklearn.base.BaseEstimator, sklearn.base.TransformerMixin):
 
     def __init__(self,
@@ -71,11 +70,8 @@ class CountVectorizer(sklearn.base.BaseEstimator, sklearn.base.TransformerMixin)
             tokens = self.preprocessor.transform(x)
             ngrams = self._create_ngrams(tokens)
             for ngram in ngrams:
-                if(ngram=='op tandan'):
-                    print('op tandan')
                 if ngram not in self.word_to_ind.keys(): #if token is not yet in the vocab dictionary, add it
                             self.word_to_ind[ngram] = len(self.word_to_ind)
-
 
         encoded_X = self._limit_features(self.transform(X))
 
@@ -110,10 +106,9 @@ class CountVectorizer(sklearn.base.BaseEstimator, sklearn.base.TransformerMixin)
 
         #ngrams
         for n in np.arange(min_n, min(max_n+1, len(tokens)+1)):
-            for token in tokens:
-                inx = tokens.index(token)
-                if inx < len(tokens) - n + 1:
-                    ngram = tokens[inx:inx+n]
+            for i in range(len(tokens)):
+                if i < len(tokens) - n + 1:
+                    ngram = tokens[i:i+n]
                     ngram = ' '.join(ngram)
                     new_ngrams.append(ngram)
 
