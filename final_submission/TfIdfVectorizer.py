@@ -14,6 +14,8 @@ from nltk.corpus import stopwords
 from scipy.sparse import hstack
 from preprocessor import Preprocessor
 
+import pickle
+
 
 class TfIdfVectorizer(sklearn.base.BaseEstimator, sklearn.base.TransformerMixin):
 
@@ -175,3 +177,71 @@ class TfIdfVectorizer(sklearn.base.BaseEstimator, sklearn.base.TransformerMixin)
                     data.append(1)
 
         return scipy.sparse.csr_matrix((data, (row,col)), shape=(len(corpus), len(self.word_to_ind)))
+
+    def _convert(self,o):
+        print("Object:", o)
+        print("Type of Object:", type(o))
+        print("Type of np.int32:", np.int32)
+        print("isinstance(o, np.int32):", isinstance(o, np.int32))
+        if isinstance(o,  np.generic): return o.item()
+        raise TypeError
+
+    def _create_param_dict(self):
+        param_dict = dict()
+        param_dict['min_word_counts'] = self.min_word_counts
+        param_dict['dtype'] = self.dtype
+        param_dict['max_df'] = self.max_df #int/float
+        param_dict['min_df'] = self.min_df #int/float
+        param_dict['vocabulary'] = self.vocabulary #set->list
+        param_dict['word_to_ind'] = self.word_to_ind #orderdedDict->json
+        param_dict['ngram_range'] = self.ngram_range #int tuple
+
+        #param_dict['preprocessor'] = pickle.dumps(self.preprocessor)
+        param_dict['doc_cleaner_pattern'] = self.doc_cleaner_pattern #str
+        param_dict['token_pattern'] = self.token_pattern #str
+        param_dict['stop_words'] = self.stop_words #set->list
+        param_dict['idf'] = self.idf
+        param_dict['X_w'] = self.X_w
+        param_dict['document_cleaner_func'] = self.document_cleaner_func
+        param_dict['tokenizer_func'] = self.tokenizer_func
+        param_dict['token_cleaner_func'] = self.token_cleaner_func
+
+        return param_dict
+
+    def dumps(self):
+        param_dict = self._create_param_dict()
+        return pickle.dumps(param_dict)
+
+    def dump(self, filename):
+        param_dict = self._create_param_dict()
+        with open(filename, 'wb+') as f:
+            pickle.dump(param_dict, f)
+
+    def load(self, filename):
+        param_dict = dict()
+        with open(filename, 'rb+') as f:
+            param_dict = pickle.load(f)
+
+        self.min_word_counts = param_dict['min_word_counts']
+        self.dtype = param_dict['dtype']
+        self.max_df = param_dict['max_df']
+        self.min_df = param_dict['min_df']
+        self.vocabulary = param_dict['vocabulary']
+        self.word_to_ind = param_dict['word_to_ind']
+        self.ngram_range = param_dict['ngram_range']
+
+        self.doc_cleaner_pattern = param_dict['doc_cleaner_pattern']
+        self.token_pattern = param_dict['token_pattern']
+        self.stop_words = param_dict['stop_words']
+        self.idf = param_dict['idf']
+        self.X_w = param_dict['X_w']
+        self.document_cleaner_func = param_dict['document_cleaner_func']
+        self.tokenizer_func = param_dict['tokenizer_func']
+        self.token_cleaner_func = param_dict['token_cleaner_func']
+
+        self.preprocessor = Preprocessor(doc_cleaner_pattern=self.doc_cleaner_pattern, 
+                                 token_pattern=self.token_pattern,
+                                 document_cleaner_func=self.document_cleaner_func,
+                                 tokenizer_func=self.tokenizer_func,
+                                 token_cleaner_func=self.token_cleaner_func,
+                                 stop_words=self.stop_words)

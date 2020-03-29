@@ -14,6 +14,9 @@ from nltk.corpus import stopwords
 from scipy.sparse import hstack
 from preprocessor import Preprocessor
 
+import pickle
+
+
 class CountVectorizer(sklearn.base.BaseEstimator, sklearn.base.TransformerMixin):
 
     def __init__(self,
@@ -29,8 +32,8 @@ class CountVectorizer(sklearn.base.BaseEstimator, sklearn.base.TransformerMixin)
                  stop_words=[],
                  ngram_range=(1, 1)):
 
-        self.min_word_counts     = min_word_counts
-        self.dtype               = dtype
+        self.min_word_counts = min_word_counts
+        self.dtype = dtype
 
         self.max_df = max_df
         self.min_df = min_df
@@ -52,6 +55,7 @@ class CountVectorizer(sklearn.base.BaseEstimator, sklearn.base.TransformerMixin)
         self.tokenizer_func = tokenizer_func
         self.token_cleaner_func = token_cleaner_func
         self.stop_words = stop_words
+
 
     def fit(self, X, y=None):
         self.fit_transform(X)
@@ -141,3 +145,61 @@ class CountVectorizer(sklearn.base.BaseEstimator, sklearn.base.TransformerMixin)
             raise ValueError("After pruning, no terms remain. Try a lower min_df or a higher max_df.")
 
         return X[:,kept_indices]
+
+    def _create_param_dict(self):
+        param_dict = dict()
+        param_dict['min_word_counts'] = self.min_word_counts
+        param_dict['dtype'] = self.dtype
+        param_dict['max_df'] = self.max_df #int/float
+        param_dict['min_df'] = self.min_df #int/float
+        param_dict['vocabulary'] = self.vocabulary #set->list
+        param_dict['word_to_ind'] = self.word_to_ind #orderdedDict->json
+        param_dict['ngram_range'] = self.ngram_range #int tuple
+
+        #param_dict['preprocessor'] = pickle.dumps(self.preprocessor)
+        param_dict['doc_cleaner_pattern'] = self.doc_cleaner_pattern #str
+        param_dict['token_pattern'] = self.token_pattern #str
+        param_dict['stop_words'] = self.stop_words #set->list
+        param_dict['document_cleaner_func'] = self.document_cleaner_func
+        param_dict['tokenizer_func'] = self.tokenizer_func
+        param_dict['token_cleaner_func'] = self.token_cleaner_func
+
+        return param_dict
+
+    def dumps(self):
+        param_dict = self._create_param_dict()
+        return pickle.dumps(param_dict)
+
+    def dump(self, filename):
+        param_dict = self._create_param_dict()
+        with open(filename, 'wb+') as f:
+            pickle.dump(param_dict, f)
+
+    def load(self, filename):
+        param_dict = dict()
+        with open(filename, 'rb+') as f:
+            param_dict = pickle.load(f)
+
+        self.min_word_counts = param_dict['min_word_counts']
+        self.dtype = param_dict['dtype']
+        self.max_df = param_dict['max_df']
+        self.min_df = param_dict['min_df']
+        self.vocabulary = param_dict['vocabulary']
+        self.word_to_ind = param_dict['word_to_ind']
+        self.ngram_range = param_dict['ngram_range']
+
+        self.doc_cleaner_pattern = param_dict['doc_cleaner_pattern']
+        self.token_pattern = param_dict['token_pattern']
+        self.stop_words = param_dict['stop_words']
+        self.document_cleaner_func = param_dict['document_cleaner_func']
+        self.tokenizer_func = param_dict['tokenizer_func']
+        self.token_cleaner_func = param_dict['token_cleaner_func']
+
+        self.preprocessor = Preprocessor(doc_cleaner_pattern=self.doc_cleaner_pattern, 
+                                 token_pattern=self.token_pattern,
+                                 document_cleaner_func=self.document_cleaner_func,
+                                 tokenizer_func=self.tokenizer_func,
+                                 token_cleaner_func=self.token_cleaner_func,
+                                 stop_words=self.stop_words)
+
+
