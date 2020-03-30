@@ -245,3 +245,4 @@ class TfIdfVectorizer(sklearn.base.BaseEstimator, sklearn.base.TransformerMixin)
                                  tokenizer_func=self.tokenizer_func,
                                  token_cleaner_func=self.token_cleaner_func,
                                  stop_words=self.stop_words)
+        self.preprocessor.fit()
